@@ -1,7 +1,7 @@
 # The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
 
 target-version = "py313"
-src = ["custom_components/familydash"]
+src = ["custom_components/hass_wakatime"]
 
 [lint]
 select = [
