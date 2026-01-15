@@ -11,6 +11,10 @@ scene: !include scenes.yaml
 
 hass_wakatime:
 
+# https://www.home-assistant.io/integrations/homeassistant/
+homeassistant:
+  debug: true
+
 logger:
   default: info
   logs:

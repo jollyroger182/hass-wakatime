@@ -2,9 +2,10 @@
   "domain": "hass_wakatime",
   "name": "Wakatime",
   "version": "0.1.0",
-  "codeowners": [],
+  "codeowners": ["@jollyroger182"],
   "dependencies": [],
   "documentation": "https://github.com/jollyroger182/hass-wakatime",
+  "issue_tracker": "https://github.com/jollyroger182/hass-wakatime/issues",
   "integration_type": "entity",
   "iot_class": "cloud_polling",
   "requirements": []

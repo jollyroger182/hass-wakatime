@@ -8,8 +8,11 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "home-assistant-frontend==20251203.3",
-    "homeassistant==2025.12.5",
+    "colorlog>=6.9.0",
+    "home-assistant-frontend>=20251203.3",
+    "homeassistant>=2025.12.5",
+    "ruff>=0.13.1",
+    "homeassistant-stubs>=2025.12.5",
 ]
 
 [[tool.uv.index]]
