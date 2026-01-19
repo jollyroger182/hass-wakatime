@@ -1,22 +1,24 @@
 from logging import getLogger
 
 from aiohttp.client import ClientSession
-from custom_components.hass_wakatime import DOMAIN
 import voluptuous as vol
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
-from homeassistant.const import UnitOfTime
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_API_KEY, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
+from .const import CONF_API_URL, CONF_USER, DEFAULT_API_URL, DEFAULT_USER, DOMAIN
 
 LOGGER = getLogger(__name__)
 PLATFORM_SCHEMA = vol.Schema(
     {
         "platform": DOMAIN,
-        vol.Required("api_url", default="https://wakatime.com/api/v1"): vol.Url(),
-        vol.Optional("api_key"): str,
-        vol.Required("user", default="current"): str,
+        vol.Required(CONF_API_URL, default=DEFAULT_API_URL): vol.Url(),
+        vol.Optional(CONF_API_KEY): str,
+        vol.Required(CONF_USER, default=DEFAULT_USER): str,
     }
 )
 
@@ -26,17 +28,31 @@ async def async_setup_platform(
     config: ConfigType,
     add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
-):
+) -> None:
+    """Set up the sensor platform from YAML configuration."""
     LOGGER.debug("setting up sensor platform")
     add_entities([TotalCodingTimeSensor(config)], update_before_add=True)
 
 
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the sensor platform from a config entry."""
+    LOGGER.debug("setting up sensor from config entry")
+    add_entities([TotalCodingTimeSensor(entry.data)], update_before_add=True)
+
+
 class TotalCodingTimeSensor(SensorEntity):
-    def __init__(self, config) -> None:
+    """Sensor for total coding time from Wakatime."""
+
+    def __init__(self, config: dict) -> None:
+        """Initialize the sensor."""
         LOGGER.debug("sensor created with config %r", config)
-        self.__api_url = config["api_url"]
-        self.__api_key = config["api_key"]
-        self.__user = config["user"]
+        self.__api_url = config[CONF_API_URL]
+        self.__api_key = config.get(CONF_API_KEY)
+        self.__user = config[CONF_USER]
         self._state = None
         self._attr_unique_id = "wakatime_total_coding_time"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING

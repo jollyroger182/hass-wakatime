@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Wakatime",
+        "description": "Configure your Wakatime integration",
+        "data": {
+          "api_url": "API URL",
+          "api_key": "API Key (optional)",
+          "user": "User"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured": "This Wakatime user is already configured"
+    }
+  }
+}
