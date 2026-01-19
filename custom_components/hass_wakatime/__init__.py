@@ -3,7 +3,6 @@
 from logging import getLogger
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.typing import ConfigType
 
 DOMAIN = "hass_wakatime"
@@ -13,5 +12,4 @@ LOGGER = getLogger(__name__)
 
 async def async_setup(hass: "HomeAssistant", config: "ConfigType"):
     LOGGER.debug("hass_wakatime loaded with config %r", (config))
-    await async_load_platform(hass, "sensor", DOMAIN, None, config)
     return True

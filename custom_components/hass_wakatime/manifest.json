@@ -8,5 +8,5 @@
   "issue_tracker": "https://github.com/jollyroger182/hass-wakatime/issues",
   "integration_type": "entity",
   "iot_class": "cloud_polling",
-  "requirements": []
+  "requirements": ["aiohttp"]
 }
