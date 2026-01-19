@@ -90,7 +90,9 @@ class TotalCodingTimeSensor(SensorEntity):
             self._attr_native_value = data["data"]["total_seconds"]
         except ClientError as err:
             LOGGER.error("Error fetching data from Wakatime API: %s", err)
-            # Keep the previous value if the update fails
+            # Keep the previous value by not updating _attr_native_value
+            return
         except (KeyError, ValueError) as err:
             LOGGER.error("Error parsing Wakatime API response: %s", err)
-            # Keep the previous value if parsing fails
+            # Keep the previous value by not updating _attr_native_value
+            return
