@@ -3,6 +3,7 @@
   "name": "Wakatime",
   "version": "0.1.0",
   "codeowners": ["@jollyroger182"],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/jollyroger182/hass-wakatime",
   "issue_tracker": "https://github.com/jollyroger182/hass-wakatime/issues",
