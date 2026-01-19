@@ -54,7 +54,11 @@ class TotalCodingTimeSensor(SensorEntity):
         self.__api_key = config.get(CONF_API_KEY)
         self.__user = config[CONF_USER]
         self._state = None
-        self._attr_unique_id = "wakatime_total_coding_time"
+        # Create a unique ID based on the API URL and user to support multiple instances
+        unique_id_base = f"{self.__api_url}_{self.__user}".replace("/", "_").replace(
+            ":", "_"
+        )
+        self._attr_unique_id = f"wakatime_total_coding_time_{unique_id_base}"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_name = "Total coding time"
         self._attr_has_entity_name = True

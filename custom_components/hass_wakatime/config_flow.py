@@ -34,12 +34,23 @@ class WakatimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await self._test_connection(api_url, api_key, user)
-            except Exception:
-                LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            except Exception as err:
+                LOGGER.exception("Error connecting to Wakatime API")
+                error_str = str(err)
+                if "401" in error_str or "403" in error_str:
+                    errors["base"] = "invalid_auth"
+                elif "404" in error_str:
+                    errors["base"] = "user_not_found"
+                elif (
+                    "timeout" in error_str.lower() or "connection" in error_str.lower()
+                ):
+                    errors["base"] = "cannot_connect"
+                else:
+                    errors["base"] = "unknown"
             else:
-                # Create a unique ID based on the user
-                await self.async_set_unique_id(f"wakatime_{user}")
+                # Create a unique ID based on the API URL and user
+                unique_id = f"{api_url}_{user}".replace("/", "_").replace(":", "_")
+                await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
