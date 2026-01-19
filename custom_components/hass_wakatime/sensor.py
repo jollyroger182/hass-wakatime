@@ -1,12 +1,13 @@
 from logging import getLogger
 
-from aiohttp.client_exceptions import ClientError
+from aiohttp.client_exceptions import ClientError, ClientResponseError
 import voluptuous as vol
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -25,8 +26,8 @@ PLATFORM_SCHEMA = vol.Schema(
     {
         "platform": DOMAIN,
         vol.Required(CONF_API_URL, default=DEFAULT_API_URL): vol.Url(),
-        vol.Optional(CONF_API_KEY): str,
-        vol.Required(CONF_USER, default=DEFAULT_USER): str,
+        vol.Optional(CONF_API_KEY): cv.string,
+        vol.Required(CONF_USER, default=DEFAULT_USER): cv.string,
     }
 )
 
@@ -89,8 +90,12 @@ class TotalCodingTimeSensor(SensorEntity):
                 data = await resp.json()
             LOGGER.debug("got response: %r", data)
             self._attr_native_value = data["data"]["total_seconds"]
+        except ClientResponseError as err:
+            LOGGER.error("HTTP error fetching data from Wakatime API: %s", err)
+            # Keep the previous value by not updating _attr_native_value
+            return
         except ClientError as err:
-            LOGGER.error("Error fetching data from Wakatime API: %s", err)
+            LOGGER.error("Connection error fetching data from Wakatime API: %s", err)
             # Keep the previous value by not updating _attr_native_value
             return
         except (KeyError, ValueError) as err:
