@@ -3,13 +3,13 @@
 from logging import getLogger
 from typing import Any
 
-from aiohttp.client import ClientSession
 from aiohttp.client_exceptions import ClientError, ClientResponseError
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_API_KEY
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_API_URL,
@@ -87,8 +87,8 @@ class WakatimeConfigFlow(ConfigFlow, domain=DOMAIN):
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
-        async with (
-            ClientSession() as sess,
-            sess.get(f"{api_url}/users/{user}/stats", headers=headers) as resp,
-        ):
+        session = async_get_clientsession(self.hass)
+        async with session.get(
+            f"{api_url}/users/{user}/stats", headers=headers, timeout=10
+        ) as resp:
             resp.raise_for_status()

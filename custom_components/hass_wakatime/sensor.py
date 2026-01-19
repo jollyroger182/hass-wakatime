@@ -1,6 +1,5 @@
 from logging import getLogger
 
-from aiohttp.client import ClientSession
 from aiohttp.client_exceptions import ClientError
 import voluptuous as vol
 
@@ -8,6 +7,7 @@ from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -39,7 +39,7 @@ async def async_setup_platform(
 ) -> None:
     """Set up the sensor platform from YAML configuration."""
     LOGGER.debug("setting up sensor platform")
-    add_entities([TotalCodingTimeSensor(config)], update_before_add=True)
+    add_entities([TotalCodingTimeSensor(hass, config)], update_before_add=True)
 
 
 async def async_setup_entry(
@@ -49,18 +49,19 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform from a config entry."""
     LOGGER.debug("setting up sensor from config entry")
-    add_entities([TotalCodingTimeSensor(entry.data)], update_before_add=True)
+    add_entities([TotalCodingTimeSensor(hass, entry.data)], update_before_add=True)
 
 
 class TotalCodingTimeSensor(SensorEntity):
     """Sensor for total coding time from Wakatime."""
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, hass: HomeAssistant, config: dict) -> None:
         """Initialize the sensor."""
         LOGGER.debug("sensor created with config %r", config)
-        self.__api_url = config[CONF_API_URL]
+        self.hass = hass
+        self.__api_url = config.get(CONF_API_URL, DEFAULT_API_URL)
         self.__api_key = config.get(CONF_API_KEY)
-        self.__user = config[CONF_USER]
+        self.__user = config.get(CONF_USER, DEFAULT_USER)
         self._state = None
         # Create a unique ID based on the API URL and user to support multiple instances
         unique_id_hash = generate_unique_id(self.__api_url, self.__user)
@@ -78,12 +79,12 @@ class TotalCodingTimeSensor(SensorEntity):
             headers["Authorization"] = f"Bearer {self.__api_key}"
 
         try:
-            async with (
-                ClientSession() as sess,
-                sess.get(
-                    f"{self.__api_url}/users/{self.__user}/stats", headers=headers
-                ) as resp,
-            ):
+            session = async_get_clientsession(self.hass)
+            async with session.get(
+                f"{self.__api_url}/users/{self.__user}/stats",
+                headers=headers,
+                timeout=10,
+            ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
             LOGGER.debug("got response: %r", data)
