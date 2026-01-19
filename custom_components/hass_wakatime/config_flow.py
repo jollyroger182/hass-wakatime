@@ -4,13 +4,21 @@ from logging import getLogger
 from typing import Any
 
 from aiohttp.client import ClientSession
+from aiohttp.client_exceptions import ClientError, ClientResponseError
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_API_KEY
 from homeassistant.helpers import config_validation as cv
 
-from .const import CONF_API_URL, CONF_USER, DEFAULT_API_URL, DEFAULT_USER, DOMAIN
+from .const import (
+    CONF_API_URL,
+    CONF_USER,
+    DEFAULT_API_URL,
+    DEFAULT_USER,
+    DOMAIN,
+    generate_unique_id,
+)
 
 LOGGER = getLogger(__name__)
 
@@ -34,22 +42,23 @@ class WakatimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await self._test_connection(api_url, api_key, user)
-            except Exception as err:
-                LOGGER.exception("Error connecting to Wakatime API")
-                error_str = str(err)
-                if "401" in error_str or "403" in error_str:
+            except ClientResponseError as err:
+                LOGGER.error("HTTP error connecting to Wakatime API: %s", err)
+                if err.status in (401, 403):
                     errors["base"] = "invalid_auth"
-                elif "404" in error_str:
+                elif err.status == 404:
                     errors["base"] = "user_not_found"
-                elif (
-                    "timeout" in error_str.lower() or "connection" in error_str.lower()
-                ):
-                    errors["base"] = "cannot_connect"
                 else:
                     errors["base"] = "unknown"
+            except ClientError as err:
+                LOGGER.error("Connection error to Wakatime API: %s", err)
+                errors["base"] = "cannot_connect"
+            except Exception:
+                LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
             else:
                 # Create a unique ID based on the API URL and user
-                unique_id = f"{api_url}_{user}".replace("/", "_").replace(":", "_")
+                unique_id = generate_unique_id(api_url, user)
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
 
