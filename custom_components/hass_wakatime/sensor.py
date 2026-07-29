@@ -1,22 +1,33 @@
 from logging import getLogger
 
-from aiohttp.client import ClientSession
-from custom_components.hass_wakatime import DOMAIN
+from aiohttp.client_exceptions import ClientError, ClientResponseError
 import voluptuous as vol
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
-from homeassistant.const import UnitOfTime
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_API_KEY, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
+from .const import (
+    CONF_API_URL,
+    CONF_USER,
+    DEFAULT_API_URL,
+    DEFAULT_USER,
+    DOMAIN,
+    generate_unique_id,
+)
 
 LOGGER = getLogger(__name__)
 PLATFORM_SCHEMA = vol.Schema(
     {
         "platform": DOMAIN,
-        vol.Required("api_url", default="https://wakatime.com/api/v1"): vol.Url(),
-        vol.Optional("api_key"): str,
-        vol.Required("user", default="current"): str,
+        vol.Required(CONF_API_URL, default=DEFAULT_API_URL): vol.Url(),
+        vol.Optional(CONF_API_KEY): cv.string,
+        vol.Required(CONF_USER, default=DEFAULT_USER): cv.string,
     }
 )
 
@@ -26,36 +37,68 @@ async def async_setup_platform(
     config: ConfigType,
     add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
-):
+) -> None:
+    """Set up the sensor platform from YAML configuration."""
     LOGGER.debug("setting up sensor platform")
-    add_entities([TotalCodingTimeSensor(config)], update_before_add=True)
+    add_entities([TotalCodingTimeSensor(hass, config)], update_before_add=True)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the sensor platform from a config entry."""
+    LOGGER.debug("setting up sensor from config entry")
+    add_entities([TotalCodingTimeSensor(hass, entry.data)], update_before_add=True)
 
 
 class TotalCodingTimeSensor(SensorEntity):
-    def __init__(self, config) -> None:
+    """Sensor for total coding time from Wakatime."""
+
+    def __init__(self, hass: HomeAssistant, config: dict) -> None:
+        """Initialize the sensor."""
         LOGGER.debug("sensor created with config %r", config)
-        self.__api_url = config["api_url"]
-        self.__api_key = config["api_key"]
-        self.__user = config["user"]
+        self.hass = hass
+        self.__api_url = config.get(CONF_API_URL, DEFAULT_API_URL)
+        self.__api_key = config.get(CONF_API_KEY)
+        self.__user = config.get(CONF_USER, DEFAULT_USER)
         self._state = None
-        self._attr_unique_id = "wakatime_total_coding_time"
+        # Create a unique ID based on the API URL and user to support multiple instances
+        unique_id_hash = generate_unique_id(self.__api_url, self.__user)
+        self._attr_unique_id = f"wakatime_total_coding_time_{unique_id_hash}"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_name = "Total coding time"
         self._attr_has_entity_name = True
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
 
     async def async_update(self) -> None:
+        """Update the sensor."""
         LOGGER.debug("updating time")
         headers = {}
         if self.__api_key:
             headers["Authorization"] = f"Bearer {self.__api_key}"
 
-        async with (
-            ClientSession() as sess,
-            sess.get(
-                f"{self.__api_url}/users/{self.__user}/stats", headers=headers
-            ) as resp,
-        ):
-            data = await resp.json()
-        LOGGER.debug("got response: %r", data)
-        self._attr_native_value = data["data"]["total_seconds"]
+        try:
+            session = async_get_clientsession(self.hass)
+            async with session.get(
+                f"{self.__api_url}/users/{self.__user}/stats",
+                headers=headers,
+                timeout=10,
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+            LOGGER.debug("got response: %r", data)
+            self._attr_native_value = data["data"]["total_seconds"]
+        except ClientResponseError as err:
+            LOGGER.error("HTTP error fetching data from Wakatime API: %s", err)
+            # Keep the previous value by not updating _attr_native_value
+            return
+        except ClientError as err:
+            LOGGER.error("Connection error fetching data from Wakatime API: %s", err)
+            # Keep the previous value by not updating _attr_native_value
+            return
+        except (KeyError, ValueError) as err:
+            LOGGER.error("Error parsing Wakatime API response: %s", err)
+            # Keep the previous value by not updating _attr_native_value
+            return
